@@ -1,0 +1,5 @@
+---------------------------------Shingle token filter---------------------------------------------------------
+
+For example, the sentence "please divide this sentence into shingles" might be tokenized into shingles "please divide", "divide this", "this sentence", "sentence into", and "into shingles".
+
+--------------------------------------------------------------------------------------------------------------

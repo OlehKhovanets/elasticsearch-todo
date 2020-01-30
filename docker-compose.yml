@@ -1,0 +1,78 @@
+version: "3.0"
+services:
+
+    redis:
+      image: redis:latest
+      container_name: elk-redis
+      ports:
+        - "6379:6379"
+
+    elastic:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.0.1
+      container_name: elk-elastic
+      environment:
+        - discovery.type=single-node
+      ulimits:
+        memlock:
+          soft: -1
+          hard: -1
+      ports:
+          - "9200:9200"
+
+    mysql:
+      container_name: elk-mysql
+      build:
+        context: ./docker/mysql
+        args:
+          - MYSQL_VERSION=8.0
+      environment:
+        - MYSQL_DATABASE=${DB_DATABASE}
+        - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+        - TZ=UTC
+      volumes:
+        - mysql_data:/var/lib/mysql
+        - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      ports:
+        - "3306:3306"
+
+    webserver:
+      image: nginx:alpine
+      container_name: elk-webserver
+      working_dir: /application
+      volumes:
+          - ${DOCKER_FS_VOLUME}:/application
+          - ./docker/nginx/local.conf:/etc/nginx/conf.d/default.conf
+      ports:
+       - "80:8081"
+
+    php-fpm:
+      build: docker/php-fpm
+      container_name: elk-php-fpm
+      working_dir: /application
+      volumes:
+        - ${DOCKER_FS_VOLUME}:/application
+        - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
+      environment:
+      - XDEBUG_CONFIG="idekey=PHPSTORM"
+
+    phpmyadmin:
+      container_name: elk-phpmyadmin
+      build: ./docker/phpmyadmin
+      environment:
+        - PMA_ARBITRARY=1
+        - MYSQL_USER=${DB_USERNAME}
+        - MYSQL_PASSWORD=${DB_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      ports:
+        - "12808:80"
+      depends_on:
+        - mysql
+
+volumes:
+  mysql_data:
+  nfsmount:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=host.docker.internal,rw,nolock,hard,nointr,nfsvers=3
+      device: ":${PWD}"
